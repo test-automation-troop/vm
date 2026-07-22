@@ -64,6 +64,17 @@ jobs:
           terraform plan `
             -out="$env:GITHUB_WORKSPACE\reports\tfplan"
 
+      - name: Verify TFPlan Exists
+        shell: pwsh
+        run: |
+            dir "$env:GITHUB_WORKSPACE\reports"
+        
+        
+      - name: Show Terraform Files
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter *.tf
+
       - name: Create JSON Report
         shell: pwsh
         run: |
