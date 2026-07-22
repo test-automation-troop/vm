@@ -56,18 +56,15 @@ jobs:
           }
 
       - name: Terraform Init
-        working-directory: vm
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: vm
         shell: pwsh
         run: |
           terraform plan `
             -out="$env:GITHUB_WORKSPACE\reports\tfplan"
 
       - name: Create JSON Report
-        working-directory: vm
         shell: pwsh
         run: |
           terraform show -json `
