@@ -16,72 +16,66 @@ jobs:
 
     steps:
 
-      - name: Checkout VM Repository
-        uses: actions/checkout@v4
-
-      - name: Checkout Drift Repository
-        uses: actions/checkout@v4
-        with:
-          repository: test-automation-troop/drift-detection
-          token: ${{ secrets.PAT_TOKEN }}
-          path: drift-repo
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      
-      - name: Verify Python
-        run: |
-          python --version
-          pip --version
-
-
-      - name: Install Python Packages
-        run: |
-          pip install -r drift-repo/requirements.txt
-
-      - name: Verify Azure Login
+      - name: Terraform Version
         shell: pwsh
         run: |
-          az account show
-
-      - name: Create Reports Folder
-        shell: pwsh
-        run: |
-          if (!(Test-Path "$env:GITHUB_WORKSPACE\reports"))
-          {
-            New-Item `
-              -ItemType Directory `
-              -Path "$env:GITHUB_WORKSPACE\reports"
-          }
+          terraform version
 
       - name: Terraform Init
-        run: terraform init
-
+        shell: pwsh
+        run: |
+          terraform init
+      
       - name: Terraform Plan
         shell: pwsh
         run: |
-          terraform plan `
-            -out="$env:GITHUB_WORKSPACE\reports\tfplan"
-
-      - name: Verify TFPlan Exists
+          terraform plan -out="$env:GITHUB_WORKSPACE\reports\tfplan"
+      
+          Write-Host "Terraform Exit Code: $LASTEXITCODE"
+      
+      - name: Verify tfplan
         shell: pwsh
         run: |
-            dir "$env:GITHUB_WORKSPACE\reports"
-        
-        
-      - name: Show Terraform Files
+          $file = "$env:GITHUB_WORKSPACE\reports\tfplan"
+      
+          if (Test-Path $file)
+          {
+            Write-Host "tfplan exists"
+      
+            $item = Get-Item $file
+      
+            Write-Host "Size: $($item.Length)"
+          }
+          else
+          {
+            throw "tfplan file not found"
+          }
+      
+      - name: Show Terraform JSON
         shell: pwsh
         run: |
-          Get-ChildItem -Recurse -Filter *.tf
-
+          terraform show -json "$env:GITHUB_WORKSPACE\reports\tfplan"
+      
       - name: Create JSON Report
         shell: pwsh
         run: |
-          terraform show -json `
-            "$env:GITHUB_WORKSPACE\reports\tfplan" `
-            > "$env:GITHUB_WORKSPACE\reports\plan.json"
-
+          terraform show -json "$env:GITHUB_WORKSPACE\reports\tfplan" |
+            Out-File "$env:GITHUB_WORKSPACE\reports\plan.json" -Encoding utf8
+      
+      - name: Verify JSON Report
+        shell: pwsh
+        run: |
+          $file = "$env:GITHUB_WORKSPACE\reports\plan.json"
+      
+          Write-Host "JSON Exists:"
+          Test-Path $file
+      
+          Write-Host "JSON Size:"
+          (Get-Item $file).Length
+      
+          Write-Host "First 20 Lines:"
+          Get-Content $file -First 20
+      
       - name: Run Drift Detection
         env:
           LOG_ANALYTICS_WORKSPACE_ID: ${{ secrets.LOG_ANALYTICS_WORKSPACE_ID }}
