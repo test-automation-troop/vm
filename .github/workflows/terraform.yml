@@ -1,42 +1,53 @@
 name: Drift Detection
 
 on:
-  schedule:
-    - cron: '30 2 * * *' # 8:00 AM IST
-
   workflow_dispatch:
 
-  push:
-    branches:
-      - main
+  schedule:
+    - cron: '30 2 * * *'
 
 jobs:
   drift-detection:
+
     runs-on: self-hosted
 
     steps:
-      - name: Checkout Infrastructure Repository
+
+      - name: Checkout VM Repository
         uses: actions/checkout@v4
 
       - name: Checkout Drift Repository
         uses: actions/checkout@v4
         with:
           repository: test-automation-troop/drift-detection
+          token: ${{ secrets.PAT_TOKEN }}
           path: drift-repo
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python Packages
+        run: |
+          pip install -r drift-repo/requirements.txt
 
       - name: Verify Azure Login
         shell: pwsh
         run: |
           az account show
 
-      - name: Create Reports Directory
+      - name: Create Reports Folder
         shell: pwsh
         run: |
-          if (!(Test-Path "$env:GITHUB_WORKSPACE\reports")) {
-              New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\reports"
+          if (!(Test-Path "$env:GITHUB_WORKSPACE\reports"))
+          {
+            New-Item `
+              -ItemType Directory `
+              -Path "$env:GITHUB_WORKSPACE\reports"
           }
 
       - name: Terraform Init
@@ -45,28 +56,22 @@ jobs:
 
       - name: Terraform Plan
         working-directory: vm
+        shell: pwsh
         run: |
-          terraform plan -out="$env:GITHUB_WORKSPACE/reports/tfplan"
+          terraform plan `
+            -out="$env:GITHUB_WORKSPACE\reports\tfplan"
 
-      - name: Export Plan JSON
+      - name: Create JSON Report
         working-directory: vm
         shell: pwsh
         run: |
-          terraform show -json "$env:GITHUB_WORKSPACE\reports\tfplan" > "$env:GITHUB_WORKSPACE\reports\plan.json"
+          terraform show -json `
+            "$env:GITHUB_WORKSPACE\reports\tfplan" `
+            > "$env:GITHUB_WORKSPACE\reports\plan.json"
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Dependencies
-        run: |
-          pip install -r drift-repo/requirements.txt
-
-      - name: Detect Drift
+      - name: Run Drift Detection
         env:
-          ACCESS_TOKEN_STORAGE_ACC: ${{ secrets.ACCESS_TOKEN_STORAGE_ACC }}
-          LOG_ANALYTICS_KEY: ${{ secrets.LOG_ANALYTICS_KEY }}
           LOG_ANALYTICS_WORKSPACE_ID: ${{ secrets.LOG_ANALYTICS_WORKSPACE_ID }}
+          LOG_ANALYTICS_SHARED_KEY: ${{ secrets.LOG_ANALYTICS_SHARED_KEY }}
         run: |
           python drift-repo/scripts/detect-drift.py reports/plan.json
