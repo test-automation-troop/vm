@@ -125,6 +125,11 @@ resource "azurerm_windows_virtual_machine" "main" {
   boot_diagnostics {
     storage_account_uri = azurerm_storage_account.boot_diagnostics.primary_blob_endpoint
   }
+
+  tags = {
+    Environment = "Prod"
+    resource_group = data.azurerm_resource_group.rg.name
+  }
 }
 
 # Install IIS web server to the virtual machine
