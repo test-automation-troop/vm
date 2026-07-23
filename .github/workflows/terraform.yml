@@ -15,60 +15,68 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout Current Repository
-        uses: actions/checkout@v5
+    - name: Checkout Current Repository
+      uses: actions/checkout@v5
 
-      - name: Checkout Drift Repository
-        uses: actions/checkout@v5
-        with:
-          repository: test-automation-troop/drift-detection
-          path: drift-repo
-          token: ${{ secrets.PAT_TOKEN }}
-          
-      - name: Terraform Version
-        shell: pwsh
-        run: |
-          terraform version
+    - name: Checkout Drift Repository
+      uses: actions/checkout@v5
+      with:
+        repository: test-automation-troop/drift-detection
+        path: drift-repo
+        token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Terraform Init
-        shell: pwsh
-        run: |
-          terraform init
+    - name: Terraform Version
+      shell: pwsh
+      run: terraform version
+
+    - name: Terraform Init
+      shell: pwsh
+      run: terraform init
 
   terraform-plan:
     needs: terraform-init
     runs-on: self-hosted
 
     steps:
-      - name: Ensure Reports Folder Exists
-        shell: pwsh
-        run: |
-          $reportsPath = "$env:GITHUB_WORKSPACE\reports"
+    - name: Ensure Reports Folder Exists
+      shell: pwsh
+      run: |
+        $reportsPath = "$env:GITHUB_WORKSPACE\reports"
 
-          if (!(Test-Path $reportsPath)) {
-              New-Item -ItemType Directory -Path $reportsPath -Force
-          }
+        if (!(Test-Path $reportsPath)) {
+          New-Item -ItemType Directory -Path $reportsPath -Force
+        }
 
-      - name: Terraform Plan
-        shell: pwsh
-        run: |
-          terraform plan -out="$env:GITHUB_WORKSPACE\reports\tfplan"
+    - name: Generate Terraform Plan
+      shell: pwsh
+      run: |
+        terraform plan -out="$env:GITHUB_WORKSPACE\reports\tfplan"
 
-      - name: Create JSON Report
-        shell: pwsh
-        run: |
-          terraform show -json "$env:GITHUB_WORKSPACE\reports\tfplan" |
-            Out-File "$env:GITHUB_WORKSPACE\reports\plan.json" -Encoding utf8
+    - name: Convert Plan to JSON
+      shell: pwsh
+      run: |
+        terraform show -json "$env:GITHUB_WORKSPACE\reports\tfplan" |
+        Out-File "$env:GITHUB_WORKSPACE\reports\plan.json" -Encoding utf8
 
-  drift-detection:
+  drift-payload:
     needs: terraform-plan
     runs-on: self-hosted
 
     steps:
-      - name: Run Drift Detection
-        shell: pwsh
-        env:
-          LOG_ANALYTICS_WORKSPACE_ID: ${{ secrets.LOG_ANALYTICS_WORKSPACE_ID }}
-          LOG_ANALYTICS_SHARED_KEY: ${{ secrets.LOG_ANALYTICS_SHARED_KEY }}
-        run: |
-          python drift-repo/scripts/detect-drift.py reports/plan.json
+    - name: Create Drift Payload
+      shell: pwsh
+      run: |
+        python drift-repo/scripts/drift-payload.py reports/plan.json
+
+  send-to-log-analytics:
+    needs: drift-payload
+    runs-on: self-hosted
+
+    steps:
+    - name: Send Drift Payload to Log Analytics
+      shell: pwsh
+      env:
+        LOG_ANALYTICS_WORKSPACE_ID: ${{ secrets.LOG_ANALYTICS_WORKSPACE_ID }}
+        LOG_ANALYTICS_SHARED_KEY: ${{ secrets.LOG_ANALYTICS_SHARED_KEY }}
+      run: |
+        python drift-repo/scripts/log-analytics.py
