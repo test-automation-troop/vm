@@ -40,6 +40,15 @@ jobs:
     runs-on: self-hosted
 
     steps:
+      - name: Ensure Reports Folder Exists
+        shell: pwsh
+        run: |
+          $reportsPath = "$env:GITHUB_WORKSPACE\reports"
+
+          if (!(Test-Path $reportsPath)) {
+              New-Item -ItemType Directory -Path $reportsPath -Force
+          }
+
       - name: Terraform Plan
         shell: pwsh
         run: |
