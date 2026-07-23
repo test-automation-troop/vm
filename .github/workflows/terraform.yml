@@ -2,7 +2,7 @@ name: Drift Detection
 
 on:
   schedule:
-    - cron: '30 2 * * *'   # 8:00 AM IST
+    - cron: "0 10 * * 1-5" # 10:00 UTC, Mon-Fri
 
   workflow_dispatch:
 
@@ -11,11 +11,10 @@ on:
       - main
 
 jobs:
-  drift-detection:
+  terraform-init:
     runs-on: self-hosted
 
     steps:
-
       - name: Terraform Version
         shell: pwsh
         run: |
@@ -25,58 +24,30 @@ jobs:
         shell: pwsh
         run: |
           terraform init
-      
+
+  terraform-plan:
+    needs: terraform-init
+    runs-on: self-hosted
+
+    steps:
       - name: Terraform Plan
         shell: pwsh
         run: |
           terraform plan -out="$env:GITHUB_WORKSPACE\reports\tfplan"
-      
-          Write-Host "Terraform Exit Code: $LASTEXITCODE"
-      
-      - name: Verify tfplan
-        shell: pwsh
-        run: |
-          $file = "$env:GITHUB_WORKSPACE\reports\tfplan"
-      
-          if (Test-Path $file)
-          {
-            Write-Host "tfplan exists"
-      
-            $item = Get-Item $file
-      
-            Write-Host "Size: $($item.Length)"
-          }
-          else
-          {
-            throw "tfplan file not found"
-          }
-      
-      - name: Show Terraform JSON
-        shell: pwsh
-        run: |
-          terraform show -json "$env:GITHUB_WORKSPACE\reports\tfplan"
-      
+
       - name: Create JSON Report
         shell: pwsh
         run: |
           terraform show -json "$env:GITHUB_WORKSPACE\reports\tfplan" |
             Out-File "$env:GITHUB_WORKSPACE\reports\plan.json" -Encoding utf8
-      
-      - name: Verify JSON Report
-        shell: pwsh
-        run: |
-          $file = "$env:GITHUB_WORKSPACE\reports\plan.json"
-      
-          Write-Host "JSON Exists:"
-          Test-Path $file
-      
-          Write-Host "JSON Size:"
-          (Get-Item $file).Length
-      
-          Write-Host "First 20 Lines:"
-          Get-Content $file -First 20
-      
+
+  drift-detection:
+    needs: terraform-plan
+    runs-on: self-hosted
+
+    steps:
       - name: Run Drift Detection
+        shell: pwsh
         env:
           LOG_ANALYTICS_WORKSPACE_ID: ${{ secrets.LOG_ANALYTICS_WORKSPACE_ID }}
           LOG_ANALYTICS_SHARED_KEY: ${{ secrets.LOG_ANALYTICS_SHARED_KEY }}
