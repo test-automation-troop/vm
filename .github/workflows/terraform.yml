@@ -1,8 +1,8 @@
 name: Drift Detection
 
 on:
-  schedule:
-    - cron: "0 10 * * 1-5" # 10:00 UTC, Mon-Fri
+  # schedule:
+  #   - cron: "0 10 * * 1-5" # 10:00 UTC, Mon-Fri
 
   workflow_dispatch:
 
@@ -50,7 +50,7 @@ jobs:
     - name: Generate Terraform Plan
       shell: pwsh
       run: |
-        terraform plan -out="$env:GITHUB_WORKSPACE\reports\tfplan"
+        terraform plan -refresh-only out="$env:GITHUB_WORKSPACE\reports\tfplan"
 
     - name: Convert Plan to JSON
       shell: pwsh
