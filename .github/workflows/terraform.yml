@@ -47,6 +47,11 @@ jobs:
           New-Item -ItemType Directory -Path $reportsPath -Force
         }
 
+    - name: Terraform Refresh Plan
+      shell: pwsh
+      run: |
+        terraform plan -refresh-only
+    
     - name: Terraform Plan
       shell: pwsh
       run: |
