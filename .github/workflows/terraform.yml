@@ -47,12 +47,12 @@ jobs:
           New-Item -ItemType Directory -Path $reportsPath -Force
         }
 
-    - name: Terraform Refresh Plan
+    - name: Terraform Plan
       shell: pwsh
       run: |
         terraform plan -refresh-only
     
-    - name: Terraform Plan
+    - name: Save Terraform Plan
       shell: pwsh
       run: |
         terraform plan -out="$env:GITHUB_WORKSPACE\reports\tfplan"
