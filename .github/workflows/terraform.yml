@@ -6,9 +6,9 @@ on:
 
   workflow_dispatch:
 
-  push:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
 
 jobs:
   terraform-init:
@@ -50,12 +50,8 @@ jobs:
     - name: Terraform Plan
       shell: pwsh
       run: |
-        terraform plan -refresh-only
-    
-    - name: Save Terraform Plan
-      shell: pwsh
-      run: |
-        terraform plan -out="$env:GITHUB_WORKSPACE\reports\tfplan"
+         terraform plan -refresh-only `
+          -out="$env:GITHUB_WORKSPACE\reports\tfplan" 
 
     - name: Convert Plan to JSON
       shell: pwsh
