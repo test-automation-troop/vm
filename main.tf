@@ -81,7 +81,10 @@ resource "azurerm_network_interface" "nic" {
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.public_ip.id
   }
-
+  tags = {
+    "Environment" = "Prod"
+    "Resource Group" = "drift-test"
+  }
 }
 
 # Connect the security group to the network interface
